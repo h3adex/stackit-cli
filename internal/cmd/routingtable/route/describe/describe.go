@@ -3,6 +3,7 @@ package describe
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/stackitcloud/stackit-cli/internal/pkg/args"
@@ -115,17 +116,36 @@ func outputResult(p *print.Printer, outputFormat string, route *iaas.Route) erro
 		routeDetails := routeUtils.ExtractRouteDetails(*route)
 
 		table := tables.NewTable()
-		table.SetHeader("ID", "DESTINATION TYPE", "DESTINATION VALUE", "NEXTHOP TYPE", "NEXTHOP VALUE", "LABELS", "CREATED AT", "UPDATED AT")
-		table.AddRow(
-			utils.PtrString(route.Id),
-			routeDetails.DestType,
-			routeDetails.DestValue,
-			routeDetails.HopType,
-			routeDetails.HopValue,
-			routeDetails.Labels,
-			routeDetails.CreatedAt,
-			routeDetails.UpdatedAt,
-		)
+
+		table.AddRow("ID", utils.PtrString(route.Id))
+		table.AddSeparator()
+
+		table.AddRow("DESTINATION TYPE", routeDetails.DestType)
+		table.AddSeparator()
+
+		table.AddRow("DESTINATION VALUE", routeDetails.DestValue)
+		table.AddSeparator()
+
+		table.AddRow("NEXTHOP TYPE", routeDetails.HopType)
+		table.AddSeparator()
+
+		table.AddRow("NEXTHOP VALUE", routeDetails.HopValue)
+		table.AddSeparator()
+
+		if route.Labels != nil && len(*route.Labels) > 0 {
+			var labels []string
+			for key, value := range *route.Labels {
+				labels = append(labels, fmt.Sprintf("%s: %s", key, value))
+			}
+			table.AddRow("LABELS", strings.Join(labels, "\n"))
+			table.AddSeparator()
+		}
+
+		table.AddRow("CREATED AT", routeDetails.CreatedAt)
+		table.AddSeparator()
+
+		table.AddRow("UPDATED AT", routeDetails.UpdatedAt)
+		table.AddSeparator()
 
 		err := table.Display(p)
 		if err != nil {
