@@ -3,6 +3,7 @@ package beta
 import (
 	"fmt"
 
+	networkarea "github.com/stackitcloud/stackit-cli/internal/cmd/beta/network-area"
 	"github.com/stackitcloud/stackit-cli/internal/pkg/types"
 
 	"github.com/stackitcloud/stackit-cli/internal/cmd/beta/alb"
@@ -47,4 +48,5 @@ func addSubcommands(cmd *cobra.Command, params *types.CmdParams) {
 	cmd.AddCommand(edge.NewCmd(params))
 	cmd.AddCommand(intake.NewCmd(params))
 	cmd.AddCommand(cdn.NewCmd(params))
+	cmd.AddCommand(networkarea.NewCmd(params))
 }

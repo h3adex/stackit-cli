@@ -1,0 +1,179 @@
+<!--Cytoscape.js (https://github.com/cytoscape/cytoscape.js)
+Copyright (c) The Cytoscape Consortium
+License: MIT-->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>STACKIT Network Area Graph</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+
+    <style type="text/css">
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #1e1e1e; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: white; overflow: hidden; }
+        #cy { width: 100vw; height: 100vh; display: block; }
+        #header { position: absolute; top: 20px; left: 20px; z-index: 10; background: rgba(30,30,30,0.85); padding: 15px; border-radius: 8px; border: 1px solid #444; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        h3 { margin: 0 0 10px 0; color: #0073B1; }
+        p { margin: 0; font-size: 14px; color: #ccc; }
+        .instructions { font-size: 12px; color: #F5A623; margin-top: 5px; }
+        /* Legend */
+        .legend { font-size: 13px; color: #eee; margin-top: 10px; display: flex; align-items: center; }
+        .legend-line { color: #E53935; font-weight: bold; font-size: 16px; margin-right: 8px; letter-spacing: 2px; }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <p>Press <b>Ctrl+C</b> in your terminal to stop.</p>
+    <p class="instructions">Click any node to highlight its connections. Click the background to reset.</p>
+
+    <div class="legend">
+        <span class="legend-line">- - -</span>
+        <span>Red dashed lines show peered network connections</span>
+    </div>
+</div>
+
+<div id="cy"></div>
+
+<script type="text/javascript">
+    // Inject data from Go backend
+    var rawData = {{.}};
+    var graphData = JSON.parse(rawData);
+    var cyElements = [];
+
+    // Map Nodes
+    graphData.nodes.forEach(function(n) {
+        var cleanLabel = n.label || "";
+        cyElements.push({
+            data: { id: n.id, label: cleanLabel, group: n.group },
+            classes: n.group
+        });
+    });
+
+    // Map Edges
+    graphData.edges.forEach(function(e) {
+        cyElements.push({
+            data: { source: e.from, target: e.to },
+            classes: e.class ? e.class : '' // Captures the 'peering' class
+        });
+    });
+
+    var cy = cytoscape({
+        container: document.getElementById('cy'),
+        elements: cyElements,
+
+        style: [
+            /* --- Base Node Style --- */
+            {
+                selector: 'node',
+                style: {
+                    'content': 'data(label)',
+                    'text-wrap': 'wrap',
+                    'text-valign': 'center',
+                    'text-halign': 'center',
+                    'color': '#ffffff',
+                    'font-size': '12px',
+                    'text-outline-width': 0,
+                    'border-width': 2,
+                    'width': 'label',
+                    'height': 'label',
+                    'padding': '16px',
+                    'transition-property': 'opacity',
+                    'transition-duration': '0.3s'
+                }
+            },
+            /* --- Base Edge Style (Structural) --- */
+            {
+                selector: 'edge',
+                style: {
+                    'width': 3,
+                    'line-color': '#777',
+                    'curve-style': 'bezier',
+                    'transition-property': 'opacity, line-color, width, line-style',
+                    'transition-duration': '0.3s'
+                }
+            },
+            /* --- Node Group Styles --- */
+            { selector: '.network-area', style: { 'shape': 'hexagon', 'background-color': '#005888', 'border-color': '#0084cc', 'font-size': '16px', 'font-weight': 'bold', 'padding': '26px' } },
+            { selector: '.project', style: { 'shape': 'round-rectangle', 'background-color': '#5a3d8a', 'border-color': '#7b52ba' } },
+            { selector: '.network', style: { 'shape': 'ellipse', 'background-color': '#d38b1c', 'border-color': '#f5a623' } },
+            { selector: '.nic-secure', style: { 'shape': 'rectangle', 'background-color': '#1b5e20', 'border-color': '#4caf50' } },
+            { selector: '.nic-insecure', style: { 'shape': 'rectangle', 'background-color': '#b71c1c', 'border-color': '#f44336' } },
+            { selector: '.routing-table', style: { 'shape': 'diamond', 'background-color': '#E91E63', 'border-color': '#FF80AB', 'font-weight': 'bold', 'font-size': '14px', 'shadow-blur': 15, 'shadow-color': '#E91E63', 'shadow-opacity': 0.8 } },
+
+            /* --- Peering Style (Default) --- */
+            {
+                selector: 'edge.peering',
+                style: {
+                    'line-color': '#E53935', // Dark red
+                    'width': 2,
+                    'line-style': 'dashed',
+                    'curve-style': 'bezier'
+                }
+            },
+
+            /* --- Highlighting Styles (Clicked state) --- */
+            { selector: '.dimmed', style: { 'opacity': 0.15 } },
+
+            // 1. Highlight for normal lines (Orange)
+            {
+                selector: 'edge.highlighted',
+                style: {
+                    'line-color': '#F5A623',
+                    'width': 5,
+                    'line-style': 'solid',
+                    'z-index': 9999
+                }
+            },
+
+            // 2. Highlight for peering lines (Bright Red & dashed)
+            {
+                selector: 'edge.peering.highlighted',
+                style: {
+                    'line-color': '#FF3333',
+                    'width': 6,
+                    'line-style': 'dashed',
+                    'z-index': 9999
+                }
+            }
+        ],
+
+        layout: {
+            name: 'cose',
+            animate: true,
+            animationDuration: 1000,
+            fit: true,
+            padding: 50,
+            nodeOverlap: 20,
+            componentSpacing: 100,
+            nodeRepulsion: function( node ){ return 400000; },
+            idealEdgeLength: function( edge ){ return 100; },
+            edgeElasticity: function( edge ){ return 100; },
+            nestingFactor: 5,
+            gravity: 80,
+            numIter: 1000
+        }
+    });
+
+    // --- INTERACTIVITY LOGIC ---
+    cy.on('tap', 'node', function(e){
+        var clickedNode = e.target;
+
+        // Dim everything
+        cy.elements().removeClass('dimmed highlighted');
+        cy.elements().addClass('dimmed');
+
+        // Highlight clicked node and its neighborhood
+        clickedNode.removeClass('dimmed');
+        clickedNode.connectedEdges().removeClass('dimmed').addClass('highlighted');
+        clickedNode.neighborhood('node').removeClass('dimmed');
+    });
+
+    cy.on('tap', function(e){
+        // Click on background resets everything
+        if(e.target === cy){
+            cy.elements().removeClass('dimmed highlighted');
+        }
+    });
+
+</script>
+</body>
+</html>
